@@ -1,4 +1,3 @@
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
 
 import {
@@ -23,12 +22,16 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
+const API_URL = "http://localhost:8080/api/profile";
+
 // Login elements
 const loginBtn = document.getElementById("loginBtn");
 const googleLoginBtn = document.getElementById("googleLoginBtn");
+
 const loginModal = bootstrap.Modal.getOrCreateInstance(
     document.getElementById("loginModal")
 );
+
 const authMessage = document.getElementById("authMessage");
 const authSubtitle = document.getElementById("authSubtitle");
 const authSwitchText = document.getElementById("authSwitchText");
@@ -37,9 +40,11 @@ const signupModeBtn = document.getElementById("authModeSignup");
 
 // Profile elements
 const profileBtn = document.getElementById("profileBtn");
+
 const profileModal = bootstrap.Modal.getOrCreateInstance(
     document.getElementById("profileModal")
 );
+
 const profileForm = document.getElementById("profileForm");
 const profileMessage = document.getElementById("profileMessage");
 const profileGoogleName = document.getElementById("profileGoogleName");
@@ -47,6 +52,7 @@ const profileEmail = document.getElementById("profileEmail");
 const profilePhoto = document.getElementById("profilePhoto");
 const navProfileName = document.getElementById("navProfileName");
 const navProfilePhoto = document.getElementById("navProfilePhoto");
+
 const nicknameInput = document.getElementById("nickname");
 const phoneInput = document.getElementById("profilePhone");
 const stateInput = document.getElementById("profileState");
@@ -54,8 +60,8 @@ const cityInput = document.getElementById("profileCity");
 const addressInput = document.getElementById("profileAddress");
 const signOutBtn = document.getElementById("signOutBtn");
 
-let authMode = "login";
 let currentUser = null;
+let authMode = "login";
 
 function showAuthMessage(text, isError = false) {
     authMessage.textContent = text;
@@ -64,18 +70,11 @@ function showAuthMessage(text, isError = false) {
         : "mt-3 mb-0 text-success";
 }
 
-function getProfileStorageKey(user) {
-    return `chargebuddy_profile_${user.uid}`;
-}
-
-function getSavedProfile(user) {
-    try {
-        return JSON.parse(
-            localStorage.getItem(getProfileStorageKey(user)) || "{}"
-        );
-    } catch {
-        return {};
-    }
+function showProfileMessage(text, isError = false) {
+    profileMessage.textContent = text;
+    profileMessage.className = isError
+        ? "small text-danger"
+        : "small text-success";
 }
 
 function setAuthMode(mode) {
@@ -112,14 +111,17 @@ loginBtn.addEventListener("click", () => {
     loginModal.show();
 });
 
-// Google Login / Signup
+// Google login/signup
 googleLoginBtn.addEventListener("click", async () => {
     try {
         showAuthMessage("Opening Google login...");
 
         const result = await signInWithPopup(auth, googleProvider);
 
-        showAuthMessage(`Welcome ${result.user.displayName || "to ChargeBuddy"}!`);
+        showAuthMessage(
+            `Welcome ${result.user.displayName || "to ChargeBuddy"}!`
+        );
+
         loginModal.hide();
     } catch (error) {
         console.error("Google login error:", error);
@@ -127,10 +129,45 @@ googleLoginBtn.addEventListener("click", async () => {
     }
 });
 
-// Load profile details
-function loadProfile(user) {
-    const saved = getSavedProfile(user);
+// Call backend with Firebase ID token
+async function profileRequest(method, body = null) {
+    if (!currentUser) {
+        throw new Error("Please login first.");
+    }
 
+    const idToken = await currentUser.getIdToken();
+
+    const options = {
+        method,
+        headers: {
+            "Authorization": `Bearer ${idToken}`
+        }
+    };
+
+    if (body !== null) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(API_URL, options);
+
+    if (response.status === 404 && method === "GET") {
+        return null;
+    }
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new Error(
+            result.error || `Request failed (${response.status})`
+        );
+    }
+
+    return result;
+}
+
+// Update profile UI
+function updateProfileUI(user, saved = {}) {
     profileGoogleName.textContent = user.displayName || "ChargeBuddy User";
     profileEmail.textContent = user.email || "Email unavailable";
 
@@ -155,30 +192,57 @@ function loadProfile(user) {
         saved.nickname || user.displayName || "My Profile";
 }
 
+// Load profile from MySQL backend
+async function loadProfile(user) {
+    updateProfileUI(user);
+
+    try {
+        const saved = await profileRequest("GET");
+
+        if (currentUser?.uid !== user.uid) return;
+
+        if (saved) {
+            updateProfileUI(user, saved);
+        }
+    } catch (error) {
+        console.error("Profile load error:", error);
+        showProfileMessage(
+            "Profile load nahi hua. Backend running hai ya nahi check karo.",
+            true
+        );
+    }
+}
+
 // Open profile
-profileBtn.addEventListener("click", () => {
+profileBtn.addEventListener("click", async () => {
     if (!currentUser) return;
 
-    loadProfile(currentUser);
-    profileMessage.textContent = "";
+    showProfileMessage("Loading profile...");
+
     profileModal.show();
+    await loadProfile(currentUser);
+
+    if (currentUser) {
+        showProfileMessage("");
+    }
 });
 
-// Save profile in this browser
-profileForm.addEventListener("submit", (event) => {
+// Save profile to MySQL
+profileForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     if (!currentUser) {
-        profileMessage.textContent = "Please login first.";
+        showProfileMessage("Please login first.", true);
         return;
     }
 
     const phone = phoneInput.value.trim();
 
     if (phone && !/^[6-9]\d{9}$/.test(phone)) {
-        profileMessage.textContent =
-            "Enter a valid 10-digit Indian mobile number.";
-        profileMessage.className = "small text-danger";
+        showProfileMessage(
+            "Enter a valid 10-digit Indian mobile number.",
+            true
+        );
         return;
     }
 
@@ -191,20 +255,20 @@ profileForm.addEventListener("submit", (event) => {
     };
 
     try {
-        localStorage.setItem(
-            getProfileStorageKey(currentUser),
-            JSON.stringify(profile)
-        );
+        showProfileMessage("Saving profile...");
+
+        const saved = await profileRequest("PUT", profile);
 
         navProfileName.textContent =
-            profile.nickname || currentUser.displayName || "My Profile";
+            saved.nickname || currentUser.displayName || "My Profile";
 
-        profileMessage.textContent = "Profile saved in this browser!";
-        profileMessage.className = "small text-success";
+        showProfileMessage("Profile saved successfully in MySQL!");
     } catch (error) {
         console.error("Profile save error:", error);
-        profileMessage.textContent = "Could not save profile.";
-        profileMessage.className = "small text-danger";
+        showProfileMessage(
+            error.message || "Could not save profile. Check backend.",
+            true
+        );
     }
 });
 
@@ -216,25 +280,28 @@ signOutBtn.addEventListener("click", async () => {
         loginModal.hide();
     } catch (error) {
         console.error("Sign out error:", error);
-        profileMessage.textContent = "Sign out failed. Please try again.";
-        profileMessage.className = "small text-danger";
+        showProfileMessage("Sign out failed. Please try again.", true);
     }
 });
 
-// Keep navbar in sync with login state
+// Keep navbar synced with Firebase login state
 onAuthStateChanged(auth, (user) => {
     currentUser = user;
 
     if (user) {
         loginBtn.hidden = true;
         profileBtn.hidden = false;
+
+        updateProfileUI(user);
         loadProfile(user);
+
         console.log("Logged in:", user.email);
     } else {
         loginBtn.hidden = false;
         profileBtn.hidden = true;
         navProfileName.textContent = "My Profile";
         navProfilePhoto.hidden = true;
+
         console.log("No user signed in.");
     }
 });
