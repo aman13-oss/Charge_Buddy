@@ -97,7 +97,7 @@ public class UserProfileController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Missing or invalid authorization header"));
-        } catch (Exception e) {
+        } catch (Exception e) { 
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(Map.of("error", "Could not verify Firebase token"));
