@@ -1,0 +1,446 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ChargeBuddy helps EV drivers discover home charging points and connect with local charger hosts.">
+    <title>ChargeBuddy | Find Your EV Charge</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <!-- Your CSS -->
+    <link rel="stylesheet" href="../CSS/style.css">
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-light sticky-top cb-navbar">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#home">
+            <span class="brand-icon">⚡</span> ChargeBuddy
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#mainNavbar" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-3">
+                <li class="nav-item"><a class="nav-link" href="#how-it-works">How it works</a></li>
+                <li class="nav-item"><a class="nav-link" href="#find-chargers">Find chargers</a></li>
+                <li class="nav-item"><a class="nav-link" href="#become-host">Become a host</a></li>
+                <li class="nav-item">
+                    <a class="btn btn-outline-success nav-login" href="#account">Login / Signup</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero-section" id="home">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <span class="eyebrow"><span class="status-dot"></span> A smarter way to charge</span>
+
+                <h1>Charge anywhere.<br><span>Move everywhere.</span></h1>
+
+                <p class="hero-description">
+                    Discover convenient home EV charging points near you.
+                    Find a charger, connect with a host and keep your journey moving.
+                </p>
+
+                <form id="searchForm" class="hero-search">
+                    <span class="search-icon">⌕</span>
+                    <input type="text" id="locationInput"
+                           placeholder="Enter city or area in India"
+                           aria-label="Search city or area" required>
+                    <button type="submit" id="searchButton">Search</button>
+                </form>
+
+                <p class="search-hint">Try Delhi, Noida, Dadri or another Indian city.</p>
+
+                <div class="hero-trust">
+                    <span>✓ Home charging discovery</span>
+                    <span>✓ Two & four wheelers</span>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="hero-visual">
+                    <div class="hero-orb orb-one"></div>
+                    <div class="hero-orb orb-two"></div>
+
+                    <div class="hero-illustration">
+                        <div class="sun-circle"></div>
+                        <div class="road"></div>
+                        <div class="charging-pole">
+                            <div class="pole-screen">⚡</div>
+                            <div class="pole-cable"></div>
+                        </div>
+                        <div class="electric-car">
+                            <div class="car-window"></div>
+                            <div class="car-light"></div>
+                            <div class="car-wheel wheel-one"></div>
+                            <div class="car-wheel wheel-two"></div>
+                            <span class="car-bolt">ϟ</span>
+                        </div>
+                    </div>
+
+                    <div class="floating-card">
+                        <div class="floating-icon">⚡</div>
+                        <div>
+                            <strong>Find your next charge</strong>
+                            <p>Explore nearby demo listings</p>
+                        </div>
+                    </div>
+
+                    <div class="floating-tag">Electric mobility, made easier</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-stats row g-3">
+            <div class="col-4">
+                <strong>2W + 4W</strong>
+                <span>Vehicle types</span>
+            </div>
+            <div class="col-4">
+                <strong>Map-based</strong>
+                <span>Location discovery</span>
+            </div>
+            <div class="col-4">
+                <strong>Community</strong>
+                <span>Host-powered concept</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- FIND CHARGERS -->
+<section class="section-padding" id="find-chargers">
+    <div class="container">
+        <div class="section-heading">
+            <div>
+                <span class="section-label">EXPLORE CHARGING</span>
+                <h2>Find a charger near you</h2>
+                <p>Search a place, explore the map and filter listings by vehicle type.</p>
+            </div>
+            <span class="demo-label">DEMO LISTINGS</span>
+        </div>
+
+        <div class="filter-toolbar">
+            <div class="filter-buttons" role="group" aria-label="Filter chargers">
+                <button class="filter-btn active" data-type="all">All chargers</button>
+                <button class="filter-btn" data-type="2w">Two wheelers</button>
+                <button class="filter-btn" data-type="4w">Four wheelers</button>
+            </div>
+            <button class="text-button" id="resetFilters">Reset filters ↺</button>
+        </div>
+
+        <div id="mapMessage" class="map-message" role="status">
+            Showing sample charger locations. Search a city to locate it on the map.
+        </div>
+
+        <div class="map-card">
+            <div class="map-topline">
+                <div>
+                    <strong>Explore the map</strong>
+                    <p>Move around the map to explore locations.</p>
+                </div>
+                <button class="btn btn-outline-success btn-sm" id="locateMeBtn">◎ My location</button>
+            </div>
+            <div id="chargerMap" aria-label="Map showing demo EV charger locations"></div>
+            <p class="map-disclaimer">
+                Map markers are illustrative demo listings, not verified live charging points.
+            </p>
+        </div>
+
+        <div class="results-heading">
+            <h3>Featured charging spots</h3>
+            <span id="resultsCount">3 listings</span>
+        </div>
+
+        <div class="row g-4" id="chargerList">
+
+            <!-- Charger 1 -->
+            <div class="col-md-6 col-lg-4 charger-item" data-type="2w" data-location="dadri">
+                <article class="charger-card">
+                    <div class="charger-image charger-image-one">
+                        <span class="charger-type-tag">2-WHEELER</span>
+                        <span class="charger-image-symbol">🛵</span>
+                    </div>
+                    <div class="charger-content">
+                        <div class="charger-location">📍 Dadri, Uttar Pradesh</div>
+                        <h4>Home Scooter Charging</h4>
+                        <p class="charger-description">A sample home charging listing for compatible electric scooters.</p>
+                        <div class="charger-specs">
+                            <span>⚡ Home socket*</span>
+                            <span>🛵 EV scooter</span>
+                        </div>
+                        <div class="charger-bottom">
+                            <div class="price">₹20 <small>/ session (demo)</small></div>
+                            <button class="btn btn-success details-btn"
+                                    data-name="Home Scooter Charging"
+                                    data-location="Dadri, Uttar Pradesh"
+                                    data-type="Two wheeler"
+                                    data-price="₹20 / session (demo)"
+                                    data-description="Sample listing for compatible electric scooters. Confirm electrical compatibility with the host.">
+                                View details
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <!-- Charger 2 -->
+            <div class="col-md-6 col-lg-4 charger-item" data-type="4w" data-location="noida">
+                <article class="charger-card">
+                    <div class="charger-image charger-image-two">
+                        <span class="charger-type-tag">4-WHEELER</span>
+                        <span class="charger-image-symbol">🚙</span>
+                    </div>
+                    <div class="charger-content">
+                        <div class="charger-location">📍 Noida, Uttar Pradesh</div>
+                        <h4>Residential EV Charging</h4>
+                        <p class="charger-description">A sample residential charging point for compatible electric cars.</p>
+                        <div class="charger-specs">
+                            <span>⚡ Home charging*</span>
+                            <span>🚙 EV car</span>
+                        </div>
+                        <div class="charger-bottom">
+                            <div class="price">₹100 <small>/ hour (demo)</small></div>
+                            <button class="btn btn-success details-btn"
+                                    data-name="Residential EV Charging"
+                                    data-location="Noida, Uttar Pradesh"
+                                    data-type="Four wheeler"
+                                    data-price="₹100 / hour (demo)"
+                                    data-description="Sample listing for compatible electric cars. Charger output and connector compatibility must be verified.">
+                                View details
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <!-- Charger 3 -->
+            <div class="col-md-6 col-lg-4 charger-item" data-type="both" data-location="delhi">
+                <article class="charger-card">
+                    <div class="charger-image charger-image-three">
+                        <span class="charger-type-tag">2W + 4W</span>
+                        <span class="charger-image-symbol">🔌</span>
+                    </div>
+                    <div class="charger-content">
+                        <div class="charger-location">📍 Delhi, India</div>
+                        <h4>Multi-Vehicle Charging Spot</h4>
+                        <p class="charger-description">A sample listing concept for multiple compatible vehicle types.</p>
+                        <div class="charger-specs">
+                            <span>⚡ Compatibility varies*</span>
+                            <span>🚗 Multiple types</span>
+                        </div>
+                        <div class="charger-bottom">
+                            <div class="price">₹50 <small>/ session (demo)</small></div>
+                            <button class="btn btn-success details-btn"
+                                    data-name="Multi-Vehicle Charging Spot"
+                                    data-location="Delhi, India"
+                                    data-type="Two and four wheeler (demo)"
+                                    data-price="₹50 / session (demo)"
+                                    data-description="Sample multi-vehicle listing concept. Each vehicle needs a suitable, safely installed charging setup.">
+                                View details
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+
+        <div id="noResults" class="no-results d-none">
+            <div>🔎</div>
+            <h4>No matching demo listings</h4>
+            <p>Try another vehicle filter or reset your filters.</p>
+            <button class="btn btn-success" id="showAllBtn">Show all listings</button>
+        </div>
+
+        <p class="safety-note">
+            *Listings, prices and compatibility details are sample data for the frontend prototype.
+            They do not confirm that a charger exists or is electrically safe.
+        </p>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section-padding how-section" id="how-it-works">
+    <div class="container">
+        <div class="section-heading centered-heading">
+            <span class="section-label">SIMPLE PROCESS</span>
+            <h2>Charging made more convenient</h2>
+            <p>A simple concept for connecting EV drivers with home charger hosts.</p>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-md-4">
+                <article class="step-card">
+                    <div class="step-number">01</div>
+                    <div class="step-icon">📍</div>
+                    <h3>Find a location</h3>
+                    <p>Search a city and explore charging listings on the map.</p>
+                </article>
+            </div>
+            <div class="col-md-4">
+                <article class="step-card">
+                    <div class="step-number">02</div>
+                    <div class="step-icon">🔌</div>
+                    <h3>Check compatibility</h3>
+                    <p>Review vehicle type, charging setup, price and availability.</p>
+                </article>
+            </div>
+            <div class="col-md-4">
+                <article class="step-card">
+                    <div class="step-number">03</div>
+                    <div class="step-icon">⚡</div>
+                    <h3>Connect and charge</h3>
+                    <p>In the future, verified hosts and drivers can coordinate bookings through ChargeBuddy.</p>
+                </article>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- HOST SECTION -->
+<section class="section-padding" id="become-host">
+    <div class="container">
+        <div class="host-panel">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-5">
+                    <span class="section-label">JOIN THE COMMUNITY</span>
+                    <h2>Have an EV charging point?</h2>
+                    <p>Register your interest in listing a compatible home charging point on ChargeBuddy.</p>
+
+                    <div class="host-benefit">✓ Share your charging setup details</div>
+                    <div class="host-benefit">✓ Specify vehicle compatibility</div>
+                    <div class="host-benefit">✓ Help make local charging easier</div>
+
+                    <p class="host-note">This demo form does not publish a real listing or store data on a server.</p>
+                </div>
+
+                <div class="col-lg-7">
+                    <form id="hostForm" class="host-form">
+                        <h3>Host interest form</h3>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="hostName" class="form-label">Your name</label>
+                                <input type="text" class="form-control" id="hostName"
+                                       placeholder="Enter your name" required maxlength="80">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="hostLocation" class="form-label">City / area</label>
+                                <input type="text" class="form-control" id="hostLocation"
+                                       placeholder="e.g. Noida" required maxlength="120">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="hostVehicle" class="form-label">Vehicle compatibility</label>
+                                <select class="form-select" id="hostVehicle" required>
+                                    <option value="">Choose vehicle type</option>
+                                    <option value="2w">Two wheeler</option>
+                                    <option value="4w">Four wheeler</option>
+                                    <option value="both">Both (if suitable)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="hostPrice" class="form-label">Indicative price (₹)</label>
+                                <input type="number" class="form-control" id="hostPrice"
+                                       min="0" max="100000" placeholder="e.g. 50" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="hostMessage" class="form-label">Additional details (optional)</label>
+                                <textarea class="form-control" id="hostMessage" rows="3"
+                                          maxlength="500" placeholder="Describe your charging setup"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button class="btn btn-success w-100" type="submit">Submit interest</button>
+                                <p id="hostFormMessage" class="form-feedback" role="status"></p>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ACCOUNT PLACEHOLDER -->
+<section class="account-section" id="account">
+    <div class="container text-center">
+        <span class="section-label">COMING NEXT</span>
+        <h2>Your charging journey starts here</h2>
+        <p>Login, signup, actual charger listings and bookings will be connected in later frontend/backend steps.</p>
+        <a href="#find-chargers" class="btn btn-success">Explore demo chargers</a>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="cb-footer">
+    <div class="container">
+        <div class="footer-main">
+            <a class="footer-brand" href="#home">⚡ ChargeBuddy</a>
+            <p>Making EV charging discovery simpler, one connection at a time.</p>
+            <div class="footer-links">
+                <a href="#how-it-works">How it works</a>
+                <a href="#find-chargers">Find chargers</a>
+                <a href="#become-host">Become a host</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© <span id="currentYear"></span> ChargeBuddy</span>
+            <span>Frontend demo · Sample listings only</span>
+        </div>
+    </div>
+</footer>
+
+<!-- CHARGER DETAILS MODAL -->
+<div class="modal fade" id="chargerModal" tabindex="-1" aria-labelledby="modalChargerName" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content cb-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalChargerName">Charger details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-location" id="modalLocation"></p>
+                <p><strong>Vehicle type:</strong> <span id="modalType"></span></p>
+                <p><strong>Indicative price:</strong> <span id="modalPrice"></span></p>
+                <p id="modalDescription"></p>
+                <div class="alert alert-warning small mb-0">
+                    This is a demo listing. Availability, host identity, price and electrical safety are not verified.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Your JavaScript -->
+<script src="../SCRIPT/script.js"></script>
+
+</body>
+</html>
