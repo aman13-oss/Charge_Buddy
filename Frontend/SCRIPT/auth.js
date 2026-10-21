@@ -135,8 +135,7 @@ async function profileRequest(method, body = null) {
         throw new Error("Please login first.");
     }
 
-    const idToken = await currentUser.getIdToken();
-
+const idToken = await currentUser.getIdToken(true);
     const options = {
         method,
         headers: {
