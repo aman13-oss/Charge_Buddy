@@ -11,7 +11,7 @@ import {
 
 // Firebase configuration
 const firebaseConfig = {
-    apiKey: "YOUR_EXISTING_FIREBASE_API_KEY",
+    apiKey: "AIzaSyBmZrijD394UCYQPGS-_lNWw_H6RmvuAWI",
     authDomain: "chargebuddy-2af9a.firebaseapp.com",
     projectId: "chargebuddy-2af9a",
     storageBucket: "chargebuddy-2af9a.firebasestorage.app",
