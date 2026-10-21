@@ -134,20 +134,14 @@ googleLoginBtn.addEventListener("click", async () => {
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
 
-        if (user.phoneNumber) {
-            showMessage(`Login successful! Welcome ${user.displayName || ""}`);
-            loginModal.hide();
-            return;
-        }
+        console.log("Google Login Successful!");
+        console.log("Firebase UID:", user.uid);
+        console.log("Name:", user.displayName);
+        console.log("Email:", user.email);
+        console.log("Photo:", user.photoURL);
 
-        // Google authenticated, but mobile verification is still required.
-        pendingGoogleUser = user;
-        otpPurpose = "google-link";
-        otpSection.hidden = true;
-        otpInput.value = "";
-
-        showMessage("Google verified. Ab mobile number enter karke OTP verify karo.");
-        phoneInput.focus();
+        showMessage(`Welcome ${user.displayName || user.email}!`);
+        loginModal.hide();
 
     } catch (error) {
         console.error("Google authentication error:", error);
