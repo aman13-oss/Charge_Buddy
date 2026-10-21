@@ -5,18 +5,13 @@ import {
     getAuth,
     GoogleAuthProvider,
     signInWithPopup,
-    RecaptchaVerifier,
-    signInWithPhoneNumber,
-    linkWithPhoneNumber,
-    PhoneAuthProvider,
-    linkWithCredential,
     onAuthStateChanged,
     signOut
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 
 // Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyBmZrijD394UCYQPGS-_lNWw_H6RmvuAWI",
+    apiKey: "YOUR_EXISTING_FIREBASE_API_KEY",
     authDomain: "chargebuddy-2af9a.firebaseapp.com",
     projectId: "chargebuddy-2af9a",
     storageBucket: "chargebuddy-2af9a.firebasestorage.app",
@@ -28,37 +23,62 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// HTML elements
+// Login elements
 const loginBtn = document.getElementById("loginBtn");
 const googleLoginBtn = document.getElementById("googleLoginBtn");
-const sendOtpBtn = document.getElementById("sendOtpBtn");
-const verifyOtpBtn = document.getElementById("verifyOtpBtn");
-const phoneInput = document.getElementById("phoneNumber");
-const otpInput = document.getElementById("otpCode");
-const otpSection = document.getElementById("otpSection");
-const message = document.getElementById("authMessage");
-const subtitle = document.getElementById("authSubtitle");
-const switchText = document.getElementById("authSwitchText");
+const loginModal = bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("loginModal")
+);
+const authMessage = document.getElementById("authMessage");
+const authSubtitle = document.getElementById("authSubtitle");
+const authSwitchText = document.getElementById("authSwitchText");
 const loginModeBtn = document.getElementById("authModeLogin");
 const signupModeBtn = document.getElementById("authModeSignup");
-const modalElement = document.getElementById("loginModal");
 
-const loginModal = bootstrap.Modal.getOrCreateInstance(modalElement);
+// Profile elements
+const profileBtn = document.getElementById("profileBtn");
+const profileModal = bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("profileModal")
+);
+const profileForm = document.getElementById("profileForm");
+const profileMessage = document.getElementById("profileMessage");
+const profileGoogleName = document.getElementById("profileGoogleName");
+const profileEmail = document.getElementById("profileEmail");
+const profilePhoto = document.getElementById("profilePhoto");
+const navProfileName = document.getElementById("navProfileName");
+const navProfilePhoto = document.getElementById("navProfilePhoto");
+const nicknameInput = document.getElementById("nickname");
+const phoneInput = document.getElementById("profilePhone");
+const stateInput = document.getElementById("profileState");
+const cityInput = document.getElementById("profileCity");
+const addressInput = document.getElementById("profileAddress");
+const signOutBtn = document.getElementById("signOutBtn");
 
 let authMode = "login";
-let confirmationResult = null;
-let recaptchaVerifier = null;
-let pendingGoogleUser = null;
-let otpPurpose = "phone";
+let currentUser = null;
 
-function showMessage(text, error = false) {
-    message.textContent = text;
-    message.className = error
+function showAuthMessage(text, isError = false) {
+    authMessage.textContent = text;
+    authMessage.className = isError
         ? "mt-3 mb-0 text-danger"
         : "mt-3 mb-0 text-success";
 }
 
-function setMode(mode) {
+function getProfileStorageKey(user) {
+    return `chargebuddy_profile_${user.uid}`;
+}
+
+function getSavedProfile(user) {
+    try {
+        return JSON.parse(
+            localStorage.getItem(getProfileStorageKey(user)) || "{}"
+        );
+    } catch {
+        return {};
+    }
+}
+
+function setAuthMode(mode) {
     authMode = mode;
 
     loginModeBtn.className = mode === "login"
@@ -69,11 +89,11 @@ function setMode(mode) {
         ? "btn btn-success active"
         : "btn btn-outline-success";
 
-    subtitle.textContent = mode === "login"
+    authSubtitle.textContent = mode === "login"
         ? "Login to your ChargeBuddy account."
         : "Create your ChargeBuddy account.";
 
-    switchText.textContent = mode === "login"
+    authSwitchText.textContent = mode === "login"
         ? "New to ChargeBuddy? Select Sign Up above."
         : "Already have an account? Select Login above.";
 
@@ -81,163 +101,142 @@ function setMode(mode) {
         ? "Continue with Google"
         : "Sign up with Google";
 
-    sendOtpBtn.textContent = mode === "login"
-        ? "Login with Phone OTP"
-        : "Sign Up with Phone OTP";
-
-    showMessage("");
+    showAuthMessage("");
 }
 
-loginModeBtn.addEventListener("click", () => setMode("login"));
-signupModeBtn.addEventListener("click", () => setMode("signup"));
+loginModeBtn.addEventListener("click", () => setAuthMode("login"));
+signupModeBtn.addEventListener("click", () => setAuthMode("signup"));
 
 loginBtn.addEventListener("click", () => {
-    setMode("login");
+    setAuthMode("login");
     loginModal.show();
 });
 
-function getPhoneNumber() {
-    const digits = phoneInput.value.replace(/\D/g, "");
-
-    if (!/^[6-9]\d{9}$/.test(digits)) {
-        throw new Error("Valid 10-digit Indian mobile number enter karo.");
-    }
-
-    return `+91${digits}`;
-}
-
-async function setupRecaptcha() {
-    if (recaptchaVerifier) {
-        await recaptchaVerifier.clear();
-        recaptchaVerifier = null;
-    }
-
-    recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        "recaptcha-container",
-        {
-            size: "normal",
-            callback: () => showMessage("reCAPTCHA verified."),
-            "expired-callback": () =>
-                showMessage("reCAPTCHA expire ho gaya. Dobara try karo.", true)
-        }
-    );
-
-    await recaptchaVerifier.render();
-}
-
-// Google authentication
+// Google Login / Signup
 googleLoginBtn.addEventListener("click", async () => {
     try {
-        showMessage("Google authentication opening...");
+        showAuthMessage("Opening Google login...");
 
         const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
 
-        console.log("Google Login Successful!");
-        console.log("Firebase UID:", user.uid);
-        console.log("Name:", user.displayName);
-        console.log("Email:", user.email);
-        console.log("Photo:", user.photoURL);
-
-        showMessage(`Welcome ${user.displayName || user.email}!`);
+        showAuthMessage(`Welcome ${result.user.displayName || "to ChargeBuddy"}!`);
         loginModal.hide();
-
     } catch (error) {
-        console.error("Google authentication error:", error);
-        showMessage(error.message || "Google authentication failed.", true);
+        console.error("Google login error:", error);
+        showAuthMessage(error.message || "Google login failed.", true);
     }
 });
 
-// Send phone OTP
-sendOtpBtn.addEventListener("click", async () => {
-    try {
-        const phoneNumber = getPhoneNumber();
+// Load profile details
+function loadProfile(user) {
+    const saved = getSavedProfile(user);
 
-        showMessage("Preparing OTP verification...");
-        await setupRecaptcha();
+    profileGoogleName.textContent = user.displayName || "ChargeBuddy User";
+    profileEmail.textContent = user.email || "Email unavailable";
 
-        if (pendingGoogleUser && otpPurpose === "google-link") {
-            confirmationResult = await linkWithPhoneNumber(
-                pendingGoogleUser,
-                phoneNumber,
-                recaptchaVerifier
-            );
-        } else {
-            confirmationResult = await signInWithPhoneNumber(
-                auth,
-                phoneNumber,
-                recaptchaVerifier
-            );
-        }
+    if (user.photoURL) {
+        profilePhoto.src = user.photoURL;
+        profilePhoto.hidden = false;
 
-        otpSection.hidden = false;
-        showMessage("SMS OTP sent. Apna 6-digit OTP enter karo.");
-
-    } catch (error) {
-        console.error("Send OTP error:", error);
-        showMessage(error.message || "OTP send nahi hua.", true);
-
-        if (recaptchaVerifier) {
-            await recaptchaVerifier.clear();
-            recaptchaVerifier = null;
-        }
-    }
-});
-
-// Verify phone OTP
-verifyOtpBtn.addEventListener("click", async () => {
-    try {
-        const code = otpInput.value.trim();
-
-        if (!/^\d{6}$/.test(code)) {
-            throw new Error("6-digit OTP enter karo.");
-        }
-
-        if (!confirmationResult) {
-            throw new Error("Pehle OTP send karo.");
-        }
-
-        showMessage("Verifying OTP...");
-
-        if (pendingGoogleUser && otpPurpose === "google-link") {
-            const credential = PhoneAuthProvider.credential(
-                confirmationResult.verificationId,
-                code
-            );
-
-            const result = await linkWithCredential(
-                pendingGoogleUser,
-                credential
-            );
-
-            showMessage(`Mobile verified! Welcome ${result.user.displayName || ""}`);
-        } else {
-            const result = await confirmationResult.confirm(code);
-
-            showMessage(`Phone verified! Welcome ${result.user.displayName || ""}`);
-        }
-
-        confirmationResult = null;
-        pendingGoogleUser = null;
-        otpInput.value = "";
-        loginModal.hide();
-
-    } catch (error) {
-        console.error("OTP verification error:", error);
-        showMessage(error.message || "OTP verification failed.", true);
-    }
-});
-
-// Observe Firebase login state
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        console.log("Firebase user:", user.uid);
-        console.log("Email:", user.email);
-        console.log("Verified phone:", user.phoneNumber || "Not verified");
+        navProfilePhoto.src = user.photoURL;
+        navProfilePhoto.hidden = false;
     } else {
-        console.log("No Firebase user signed in.");
+        profilePhoto.hidden = true;
+        navProfilePhoto.hidden = true;
+    }
+
+    nicknameInput.value = saved.nickname ?? user.displayName ?? "";
+    phoneInput.value = saved.phone ?? "";
+    stateInput.value = saved.state ?? "";
+    cityInput.value = saved.city ?? "";
+    addressInput.value = saved.address ?? "";
+
+    navProfileName.textContent =
+        saved.nickname || user.displayName || "My Profile";
+}
+
+// Open profile
+profileBtn.addEventListener("click", () => {
+    if (!currentUser) return;
+
+    loadProfile(currentUser);
+    profileMessage.textContent = "";
+    profileModal.show();
+});
+
+// Save profile in this browser
+profileForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    if (!currentUser) {
+        profileMessage.textContent = "Please login first.";
+        return;
+    }
+
+    const phone = phoneInput.value.trim();
+
+    if (phone && !/^[6-9]\d{9}$/.test(phone)) {
+        profileMessage.textContent =
+            "Enter a valid 10-digit Indian mobile number.";
+        profileMessage.className = "small text-danger";
+        return;
+    }
+
+    const profile = {
+        nickname: nicknameInput.value.trim(),
+        phone,
+        state: stateInput.value.trim(),
+        city: cityInput.value.trim(),
+        address: addressInput.value.trim()
+    };
+
+    try {
+        localStorage.setItem(
+            getProfileStorageKey(currentUser),
+            JSON.stringify(profile)
+        );
+
+        navProfileName.textContent =
+            profile.nickname || currentUser.displayName || "My Profile";
+
+        profileMessage.textContent = "Profile saved in this browser!";
+        profileMessage.className = "small text-success";
+    } catch (error) {
+        console.error("Profile save error:", error);
+        profileMessage.textContent = "Could not save profile.";
+        profileMessage.className = "small text-danger";
     }
 });
 
-console.log("ChargeBuddy authentication ready.");
+// Sign out
+signOutBtn.addEventListener("click", async () => {
+    try {
+        await signOut(auth);
+        profileModal.hide();
+        loginModal.hide();
+    } catch (error) {
+        console.error("Sign out error:", error);
+        profileMessage.textContent = "Sign out failed. Please try again.";
+        profileMessage.className = "small text-danger";
+    }
+});
+
+// Keep navbar in sync with login state
+onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+
+    if (user) {
+        loginBtn.hidden = true;
+        profileBtn.hidden = false;
+        loadProfile(user);
+        console.log("Logged in:", user.email);
+    } else {
+        loginBtn.hidden = false;
+        profileBtn.hidden = true;
+        navProfileName.textContent = "My Profile";
+        navProfilePhoto.hidden = true;
+        console.log("No user signed in.");
+    }
+});
+
+console.log("ChargeBuddy authentication and profile ready.");
