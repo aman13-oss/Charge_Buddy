@@ -1,4 +1,4 @@
-package com.chargebuddy;
+package com.chargebuddy.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
