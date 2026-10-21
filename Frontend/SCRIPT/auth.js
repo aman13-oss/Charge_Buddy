@@ -117,14 +117,46 @@ googleLoginBtn.addEventListener("click", async () => {
         showAuthMessage("Opening Google login...");
 
         const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        const idToken = await user.getIdToken();
 
-        showAuthMessage(
-            `Welcome ${result.user.displayName || "to ChargeBuddy"}!`
-        );
+        if (authMode === "login") {
+            const response = await fetch("http://localhost:8080/api/auth/check", {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            });
 
+            if (!response.ok) {
+                throw new Error("Unable to check registration. Please try again.");
+            }
+
+            const data = await response.json();
+
+            if (!data.registered) {
+                await signOut(auth);
+                showAuthMessage("Not registered, please sign up first.", true);
+                return;
+            }
+        } else {
+            const response = await fetch("http://localhost:8080/api/auth/register", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error("Registration failed. Please try again.");
+            }
+        }
+
+        showAuthMessage(`Welcome ${user.displayName || "to ChargeBuddy"}!`);
         loginModal.hide();
+
     } catch (error) {
-        console.error("Google login error:", error);
+        console.error("Google login/signup error:", error);
         showAuthMessage(error.message || "Google login failed.", true);
     }
 });
