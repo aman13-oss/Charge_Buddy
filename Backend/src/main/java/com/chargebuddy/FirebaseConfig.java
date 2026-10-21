@@ -1,3 +1,5 @@
+package com.chargebuddy;
+
 import java.io.IOException;
 
 import org.springframework.context.annotation.Bean;
@@ -19,7 +21,7 @@ public class FirebaseConfig {
 
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(
-                        GoogleCredentials.getApplicationDefault()
+                    GoogleCredentials.getApplicationDefault()
                 )
                 .build();
 
